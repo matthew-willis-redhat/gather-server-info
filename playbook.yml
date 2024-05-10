@@ -1,50 +1,43 @@
 ---
 - name: Get host current operating system
-  hosts: localhost
+  hosts: all
   gather_facts: false
 
   vars:
-    # filename: "os_report_{{ date }}.csv"
     csv_output: []
 
   pre_tasks:
     - name: Set CSV header
       ansible.builtin.set_fact:
-        csv_output: "{{ csv_output + ['fqdn,distribution,distribution_version'] }}"
+        csv_output: "{{ csv_output + ['fqdn,hostname,machine_id,distribution,distribution_version'] }}"
 
   tasks:
-    # - name: Generate filename
-    #   ansible.builtin.set_fact:
-    #     date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
-    #   run_once: true
-
     - name: Gather specific facts
       ansible.builtin.setup:
         filter:
           - 'ansible_fqdn'
+          - 'ansible_hostname'
+          - 'ansible_machine_id'
           - 'ansible_distribution'
           - 'ansible_distribution_version'
-      loop: "{{ groups['myhosts'] }}"
 
     - name: Get host information
       ansible.builtin.debug:
         msg: "{{ ansible_fqdn }} is running {{ ansible_distribution }} version {{ ansible_distribution_version }}"
-      loop: "{{ groups['myhosts'] }}"
 
     - name: Set CSV line
       ansible.builtin.set_fact:
-        csv_line: "{{ ansible_fqdn }},{{ ansible_distribution }},{{ ansible_distribution_version }}"
-      loop: "{{ groups['myhosts'] }}"
-
-    # - name: Get host information
-    #   ansible.builtin.debug:
-    #     var: csv_output
+        csv_line: "{{ ansible_fqdn }},{{ ansible_hostname }},{{ ansible_machine_id }},{{ ansible_distribution }},{{ ansible_distribution_version }}"
 
     - name: Set CSV output
       ansible.builtin.set_fact:
-        csv_output: "{{ csv_output + [csv_line] }}"
-      loop: "{{ groups['myhosts'] }}"
+        csv_output: "{{ csv_output + [hostvars[item]['csv_line']] }}"
+      loop: "{{ ansible_play_hosts }}"
+      delegate_to: localhost
+      run_once: true
 
     - name: Get host information
       ansible.builtin.debug:
         var: csv_output
+      delegate_to: localhost
+      run_once: true
